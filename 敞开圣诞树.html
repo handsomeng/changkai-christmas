@@ -1085,9 +1085,8 @@
         
         // 生成二维码
         function generateQRCode() {
-            // 获取当前页面的 URL，替换为手机端页面
-            const currentUrl = window.location.href;
-            const mobileUrl = currentUrl.replace('敞开圣诞树.html', '手机端祝福.html');
+            // 直接使用域名 + 手机端页面路径
+            const mobileUrl = window.location.origin + '/手机端祝福.html';
             
             new QRCode(document.getElementById('qrcode'), {
                 text: mobileUrl,
