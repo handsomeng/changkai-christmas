@@ -1080,58 +1080,91 @@
         // --- 8. Supabase 实时祝福系统 ---
         
         // 初始化 Supabase
-        const { createClient } = supabase;
-        const supabaseClient = createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+        let supabaseClient;
+        try {
+            if (typeof supabase !== 'undefined' && typeof SUPABASE_CONFIG !== 'undefined') {
+                const { createClient } = supabase;
+                supabaseClient = createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+                console.log('✅ Supabase initialized');
+            } else {
+                console.warn('⚠️ Supabase or config not loaded');
+            }
+        } catch (error) {
+            console.error('Supabase initialization failed:', error);
+        }
         
         // 生成二维码
         function generateQRCode() {
-            // 直接使用域名 + 手机端页面路径
-            const mobileUrl = window.location.origin + '/手机端祝福.html';
-            
-            new QRCode(document.getElementById('qrcode'), {
-                text: mobileUrl,
-                width: 120,
-                height: 120,
-                colorDark: '#0f3b1e',
-                colorLight: '#ffffff',
-                correctLevel: QRCode.CorrectLevel.H
-            });
-            
-            console.log('QR Code generated for:', mobileUrl);
+            try {
+                // 检查 QRCode 库是否加载
+                if (typeof QRCode === 'undefined') {
+                    console.warn('QRCode library not loaded');
+                    document.getElementById('qrcode').innerHTML = '<p style="color:#D4AF37;font-size:0.8rem;padding:10px;">二维码加载中...</p>';
+                    return;
+                }
+                
+                // 直接使用域名 + 手机端页面路径
+                const mobileUrl = window.location.origin + '/手机端祝福.html';
+                
+                new QRCode(document.getElementById('qrcode'), {
+                    text: mobileUrl,
+                    width: 120,
+                    height: 120,
+                    colorDark: '#0f3b1e',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+                
+                console.log('QR Code generated for:', mobileUrl);
+            } catch (error) {
+                console.error('QR Code generation failed:', error);
+                document.getElementById('qrcode').innerHTML = '<p style="color:#D4AF37;font-size:0.8rem;padding:10px;">请直接访问:<br>' + window.location.origin + '/手机端祝福.html</p>';
+            }
         }
         
         // 订阅新祝福
         function subscribeToNewBlessings() {
-            supabaseClient
-                .channel('blessings_channel')
-                .on(
-                    'postgres_changes',
-                    {
-                        event: 'INSERT',
-                        schema: 'public',
-                        table: 'blessings'
-                    },
-                    (payload) => {
-                        console.log('New blessing received:', payload.new);
-                        const { name, blessing } = payload.new;
-                        
-                        // 显示大屏高亮
-                        showHighlight(name, blessing);
-                        
-                        // 5秒后添加到弹幕列表
-                        setTimeout(() => {
-                            const fullText = name ? `${name}: ${blessing}` : blessing;
-                            danmakuList.push(fullText);
-                            // 立即生成一个弹幕
-                            spawnDanmaku(blessing, name);
-                        }, 5000);
-                    }
-                )
-                .subscribe((status) => {
-                    if (status === 'SUBSCRIBED') {
-                        console.log('✅ Subscribed to blessings in real-time');
-                    }
-                });
+            try {
+                if (!supabaseClient) {
+                    console.warn('Supabase client not initialized');
+                    return;
+                }
+                
+                supabaseClient
+                    .channel('blessings_channel')
+                    .on(
+                        'postgres_changes',
+                        {
+                            event: 'INSERT',
+                            schema: 'public',
+                            table: 'blessings'
+                        },
+                        (payload) => {
+                            console.log('New blessing received:', payload.new);
+                            const { name, blessing } = payload.new;
+                            
+                            // 显示大屏高亮
+                            showHighlight(name, blessing);
+                            
+                            // 5秒后添加到弹幕列表
+                            setTimeout(() => {
+                                const fullText = name ? `${name}: ${blessing}` : blessing;
+                                danmakuList.push(fullText);
+                                // 立即生成一个弹幕
+                                spawnDanmaku(blessing, name);
+                            }, 5000);
+                        }
+                    )
+                    .subscribe((status) => {
+                        if (status === 'SUBSCRIBED') {
+                            console.log('✅ Subscribed to blessings in real-time');
+                        } else if (status === 'CHANNEL_ERROR') {
+                            console.error('❌ Subscription failed');
+                        }
+                    });
+            } catch (error) {
+                console.error('Subscription error:', error);
+            }
         }
         
         // --- 9. 启动流程 ---
@@ -1146,12 +1179,22 @@
         // 订阅实时祝福
         subscribeToNewBlessings();
 
-        // 隐藏加载界面
+        // 隐藏加载界面（增加超时保护）
         const loading = document.getElementById('loading');
-        setTimeout(() => {
-            loading.style.opacity = 0;
-            setTimeout(() => loading.style.display = 'none', 1000);
-        }, 1000);
+        function hideLoading() {
+            if (loading && loading.style.display !== 'none') {
+                loading.style.opacity = 0;
+                setTimeout(() => {
+                    if (loading) loading.style.display = 'none';
+                }, 1000);
+            }
+        }
+        
+        // 立即隐藏加载界面，不等待其他资源
+        setTimeout(hideLoading, 1000);
+        
+        // 超时保护：如果 5 秒后还没隐藏，强制隐藏
+        setTimeout(hideLoading, 5000);
 
         // 摄像头相关变量
         const videoElement = document.getElementById('video-input');
