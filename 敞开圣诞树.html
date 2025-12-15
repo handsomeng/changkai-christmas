@@ -1127,7 +1127,7 @@
                     height: 120,
                     colorDark: '#0f3b1e',
                     colorLight: '#ffffff',
-                    correctLevel: QRCode.CorrectLevel.H
+                    correctLevel: QRCode.CorrectLevel.L  // 改为 L（低容错）以支持更长的 URL
                 });
                 
                 console.log('✅ QR Code generated for:', mobileUrl);
