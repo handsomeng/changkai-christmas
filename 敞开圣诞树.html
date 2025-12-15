@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>敞开酒馆 - 圣诞手势互动</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Noto+Serif+SC:wght@700&display=swap');
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000500; /* 极深绿色背景 */
+            font-family: 'Noto Serif SC', serif;
+            color: #eecfa1;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        /* 摄像头画面 (用于调试，默认隐藏或小窗显示) */
+        #video-input {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 160px;
+            height: 120px;
+            border-radius: 10px;
+            border: 2px solid #D4AF37;
+            z-index: 10;
+            transform: scaleX(-1); /* 镜像 */
+            opacity: 0.7;
+            display: none; /* 默认隐藏 */
+        }
+
+        /* UI 层 */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 40px;
+            box-sizing: border-box;
+        }
+
+        .header {
+            text-align: center;
+            text-shadow: 0 0 20px rgba(212, 175, 55, 0.8);
+            /* 移除了状态栏，仅保留头部布局占位 */
+            margin-top: 20px;
+        }
+
+        h1 {
+            font-family: 'Dancing Script', cursive;
+            font-size: 3rem;
+            color: #D4AF37;
+            margin: 0;
+            letter-spacing: 2px;
+        }
+
+        /* 底部控制区：改为按钮 */
+        #controls {
+            pointer-events: auto;
+            position: fixed;
+            bottom: 40px;
+            left: 40px;
+        }
+
+        .main-btn {
+            background: linear-gradient(135deg, #D4AF37, #AA8822);
+            color: #0f3b1e;
+            border: none;
+            padding: 15px 35px;
+            border-radius: 25px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.5);
+            transition: all 0.3s;
+            font-family: 'Noto Serif SC', serif;
+            font-size: 1.2rem;
+        }
+
+        .main-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 30px rgba(212, 175, 55, 0.8);
+        }
+
+        /* 弹窗样式 */
+        #modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 50;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #modal-overlay.active {
+            display: flex;
+        }
+
+        #modal-content {
+            background: rgba(0, 30, 15, 0.95);
+            padding: 40px;
+            border-radius: 20px;
+            border: 2px solid #D4AF37;
+            backdrop-filter: blur(10px);
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 0 40px rgba(212, 175, 55, 0.6);
+        }
+
+        #modal-content h2 {
+            color: #D4AF37;
+            font-family: 'Noto Serif SC', serif;
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 30px;
+            font-size: 1.8rem;
+        }
+
+        .modal-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid #D4AF37;
+            color: #fff;
+            font-family: 'Noto Serif SC', serif;
+            font-size: 1.1rem;
+            padding: 10px 5px;
+            margin-bottom: 20px;
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        .modal-input::placeholder {
+            color: rgba(212, 175, 55, 0.5);
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            background: linear-gradient(135deg, #D4AF37, #AA8822);
+            color: #0f3b1e;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+            transition: transform 0.2s;
+            font-family: 'Noto Serif SC', serif;
+            font-size: 1.1rem;
+        }
+
+        .modal-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
+        }
+
+        .modal-btn.cancel {
+            background: linear-gradient(135deg, #666, #444);
+        }
+
+        /* 大屏高亮显示 */
+        #highlight-display {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 60;
+            text-align: center;
+            pointer-events: none;
+            width: 90%;
+            max-width: 1200px;
+            padding: 20px;
+        }
+
+        #highlight-display.active {
+            display: block;
+            animation: highlightFadeIn 0.5s ease-out;
+        }
+
+        @keyframes highlightFadeIn {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.5);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+
+        .highlight-blessing {
+            font-family: 'Noto Serif SC', serif;
+            font-size: 8rem;
+            color: #FFD700;
+            text-shadow: 0 0 50px rgba(255, 215, 0, 1),
+                         0 0 100px rgba(255, 215, 0, 0.8),
+                         0 0 150px rgba(255, 215, 0, 0.6);
+            font-weight: bold;
+            margin-bottom: 30px;
+            line-height: 1.2;
+            word-wrap: break-word;
+            word-break: break-word;
+        }
+
+        .highlight-name {
+            font-family: 'Noto Serif SC', serif;
+            font-size: 3.5rem;
+            color: #D4AF37;
+            text-shadow: 0 0 30px rgba(212, 175, 55, 1),
+                         0 0 60px rgba(212, 175, 55, 0.8);
+            font-weight: bold;
+            opacity: 0.9;
+        }
+
+        /* 响应式适配 */
+        @media (max-width: 768px) {
+            .highlight-blessing {
+                font-size: 4rem;
+                padding: 0 20px;
+            }
+            .highlight-name {
+                font-size: 2rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .highlight-blessing {
+                font-size: 3rem;
+                padding: 0 20px;
+            }
+            .highlight-name {
+                font-size: 1.5rem;
+            }
+        }
+
+        .guide-panel {
+            position: absolute;
+            bottom: 20px;
+            right: 200px;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 15px;
+            border-right: 2px solid #D4AF37;
+            color: #ccc;
+            font-size: 0.85rem;
+            line-height: 1.8;
+            backdrop-filter: blur(4px);
+            text-align: right;
+        }
+        
+        .guide-item {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            margin-bottom: 8px;
+        }
+        
+        .icon {
+            margin-left: 10px;
+            color: #D4AF37;
+            font-weight: bold;
+        }
+        
+        /* 二维码区域 */
+        .qrcode-container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 15px;
+            box-shadow: 0 0 30px rgba(212, 175, 55, 0.5);
+            text-align: center;
+            z-index: 20;
+            pointer-events: auto;
+        }
+
+        .qrcode-title {
+            font-family: 'Noto Serif SC', serif;
+            color: #0f3b1e;
+            font-size: 0.9rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        #qrcode {
+            display: inline-block;
+            padding: 5px;
+            background: white;
+        }
+
+        .qrcode-hint {
+            font-size: 0.75rem;
+            color: #666;
+            margin-top: 8px;
+        }
+
+        .camera-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background: rgba(0, 20, 10, 0.8);
+            border-radius: 50%;
+            border: 2px solid #D4AF37;
+            color: #D4AF37;
+            font-size: 2rem;
+            backdrop-filter: blur(5px);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+            z-index: 20;
+            pointer-events: auto;
+        }
+
+        .camera-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 25px rgba(212, 175, 55, 0.6);
+            background: rgba(0, 30, 15, 0.9);
+        }
+
+        .camera-btn.active {
+            color: #00ff00;
+            border-color: #00ff00;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+        }
+
+        .camera-btn.error {
+            border-color: #ff4444;
+            box-shadow: 0 0 20px rgba(255, 68, 68, 0.5);
+        }
+
+        .camera-btn.connecting {
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+            }
+            50% {
+                box-shadow: 0 0 30px rgba(212, 175, 55, 0.8);
+            }
+        }
+
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #D4AF37;
+            flex-direction: column;
+            transition: opacity 1s;
+        }
+        
+        /* 3D Cursor follower */
+        #cursor-follower {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 0, 0, 0.8);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 20;
+            display: none; /* Initially hidden until hand detected */
+            box-shadow: 0 0 10px red;
+        }
+
+    </style>
+    
+    <!-- Libraries -->
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Post Processing -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+    
+    <!-- MediaPipe Hands -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    
+    <!-- Tweening -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+    
+    <!-- QRCode -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./config.js"></script>
+
+</head>
+<body>
+
+    <div id="loading">
+        <h1>Loading Magic...</h1>
+        <p>初始化视觉引擎与AI模型</p>
+    </div>
+
+    <div id="canvas-container"></div>
+    <video id="video-input" playsinline></video>
+    <div id="cursor-follower"></div>
+
+    <div id="ui-layer">
+        <div class="header">
+            <!-- 仅保留标题，状态栏已移除 -->
+        </div>
+
+        <!-- 二维码 -->
+        <div class="qrcode-container">
+            <div class="qrcode-title">📱 扫码送祝福</div>
+            <div id="qrcode"></div>
+            <div class="qrcode-hint">祝福将实时显示</div>
+        </div>
+
+        <button class="camera-btn" id="camera-btn" onclick="toggleCamera()" title="点击启动摄像头">
+            📷
+        </button>
+
+        <div class="guide-panel">
+            <div class="guide-item">握拳：合拢成圣诞树 <span class="icon">✊</span></div>
+            <div class="guide-item">张开：散开成星云 <span class="icon">🖐</span></div>
+            <div class="guide-item">移动：旋转视角 <span class="icon">👋</span></div>
+            <div class="guide-item" style="margin-top: 15px; font-size: 0.75rem; opacity: 0.7;">
+                无摄像头时自动旋转
+            </div>
+        </div>
+
+        <div id="controls">
+            <button class="main-btn" onclick="openModal()">留下祝福</button>
+        </div>
+    </div>
+
+    <!-- 弹窗 -->
+    <div id="modal-overlay" onclick="closeModalOnOverlay(event)">
+        <div id="modal-content">
+            <h2>✨ 留下你的圣诞祝福 ✨</h2>
+            <input type="text" id="modal-name-input" class="modal-input" placeholder="你的名字（选填）" maxlength="10">
+            <input type="text" id="modal-blessing-input" class="modal-input" placeholder="写下你的祝福..." maxlength="30">
+            <div class="modal-buttons">
+                <button class="modal-btn cancel" onclick="closeModal()">取消</button>
+                <button class="modal-btn" onclick="submitBlessing()">发送</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 大屏高亮显示 -->
+    <div id="highlight-display">
+        <div class="highlight-blessing" id="highlight-blessing"></div>
+        <div class="highlight-name" id="highlight-name"></div>
+    </div>
+    
+    <div style="display:none;">
+        <!-- 占位，用于闭合之前的div -->
+    </div>
+    
+    <div id="ui-layer-backup" style="display:none;">
+        <!-- 原来被替换的结束标签的占位 -->
+    </div>
+
+    <script>
+        // --- 1. 配置与全局变量 ---
+        const CONFIG = {
+            colors: {
+                matteGreen: 0x0f3b1e,
+                metalGold: 0xffd700,
+                christmasRed: 0xaa0000,
+                bg: 0x000500
+            },
+            particleCount: 800,
+            treeHeight: 25,
+            treeRadius: 10
+        };
+
+        const STATE = {
+            TREE: 'tree',
+            SCATTER: 'scatter'
+        };
+
+        let currentState = STATE.TREE;
+        let targetState = STATE.TREE;
+        
+        let scene, camera, renderer, composer;
+        let clock = new THREE.Clock();
+        let particles = []; // 存储所有动态对象 { mesh, treePos, scatterPos, velocity }
+        let sceneGroup; // 包含所有粒子的组，用于整体旋转
+        let danmakuGroup; // 包含弹幕的组，独立于 sceneGroup，不随手势大幅旋转
+        
+        // Hand Tracking State
+        let handPosition = { x: 0, y: 0 };
+        let isHandDetected = false;
+
+        // Danmaku System
+        let danmakuList = [
+            "圣诞快乐！",
+            "我的礼物呢！",
+            "敞开酒馆我太爱了！",
+            "敞开万岁！",
+            "明年一定要幸福！",
+            "万事如意",
+            "我喜欢这儿的精酿",
+            "好喝好玩",
+            "有趣有料",
+            "今年没人送我苹果，明年一定有",
+            "敞开的精酿治愈了我",
+            "在敞开遇见最好的自己",
+            "圣诞夜来敞开小酌一杯",
+            "敞开的氛围太棒了",
+            "每一杯都是用心之作",
+            "圣诞树下的温暖时光",
+            "敞开让我找到了归属感",
+            "精酿配圣诞，完美！",
+            "这里的每个人都很有趣",
+            "敞开是我的精神角落",
+            "圣诞节最想待的地方",
+            "敞开的老板好帅啊",
+            "来敞开就对了",
+            "精酿爱好者的天堂",
+            "圣诞限定酒太好喝了",
+            "在这里度过最美圣诞",
+            "敞开的故事永远听不腻",
+            "每次来都有新发现",
+            "圣诞快乐！干杯！",
+            "敞开让冬天变得温暖",
+            "这里的音乐和酒都刚刚好",
+            "圣诞夜的浪漫回忆",
+            "敞开是我的解压圣地",
+            "精酿界的宝藏小店",
+            "圣诞礼物就要敞开啤酒",
+            "在敞开找到了知音",
+            "每一口都是幸福的味道",
+            "圣诞节来敞开许愿",
+            "敞开的圣诞氛围太赞了",
+            "这里是灵魂的栖息地",
+            "精酿+圣诞=快乐",
+            "敞开陪我过每个节日",
+            "圣诞老人快来敞开",
+            "在这里感受生活的美好",
+            "敞开的每一天都是节日",
+            "精酿让圣诞更有仪式感",
+            "敞开是我的第二个家",
+            "圣诞夜干杯到天亮",
+            "在敞开收获满满惊喜",
+            "精酿配知己，圣诞更美丽"
+        ];
+        let activeDanmakuObjects = [];
+        let lastSpawnTime = 0;
+
+        // --- 2. 初始化 Three.js 场景 ---
+        function initScene() {
+            const container = document.getElementById('canvas-container');
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(CONFIG.colors.bg);
+            scene.fog = new THREE.FogExp2(CONFIG.colors.bg, 0.02);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 40;
+            camera.position.y = 10;
+            camera.lookAt(0, 10, 0);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.toneMapping = THREE.ReinhardToneMapping;
+            container.appendChild(renderer.domElement);
+
+            // 包含所有粒子/树的容器
+            sceneGroup = new THREE.Group();
+            scene.add(sceneGroup);
+
+            // 包含弹幕的容器 (放在背景)
+            danmakuGroup = new THREE.Group();
+            danmakuGroup.position.z = -15; // 放在树的后面
+            scene.add(danmakuGroup);
+
+            // 灯光
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+            scene.add(ambientLight);
+
+            const pointLight = new THREE.PointLight(CONFIG.colors.metalGold, 1.5, 100);
+            pointLight.position.set(10, 20, 10);
+            scene.add(pointLight);
+            
+            const redLight = new THREE.PointLight(CONFIG.colors.christmasRed, 1.0, 80);
+            redLight.position.set(-10, 5, 10);
+            scene.add(redLight);
+
+            // 后处理 (Bloom 辉光)
+            const renderScene = new THREE.RenderPass(scene, camera);
+            const bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
+            bloomPass.threshold = 0;
+            bloomPass.strength = 1.2; // 辉光强度
+            bloomPass.radius = 0.5;
+
+            composer = new THREE.EffectComposer(renderer);
+            composer.addPass(renderScene);
+            composer.addPass(bloomPass);
+
+            // 监听窗口大小
+            window.addEventListener('resize', onWindowResize, false);
+            
+            // 初始化内容
+            createParticles();
+            createTopText();
+        }
+
+        // --- 3. 创建内容 (粒子与形状) ---
+        function createParticles() {
+            // 3.1 几何体与材质
+            const sphereGeo = new THREE.SphereGeometry(0.4, 16, 16);
+            const cubeGeo = new THREE.BoxGeometry(0.6, 0.6, 0.6);
+            
+            const goldMat = new THREE.MeshStandardMaterial({ 
+                color: CONFIG.colors.metalGold, 
+                metalness: 0.9, 
+                roughness: 0.1,
+                emissive: 0x332200 
+            });
+            
+            const redMat = new THREE.MeshStandardMaterial({ 
+                color: CONFIG.colors.christmasRed, 
+                metalness: 0.5, 
+                roughness: 0.2,
+                emissive: 0x220000
+            });
+            
+            const greenMat = new THREE.MeshStandardMaterial({ 
+                color: CONFIG.colors.matteGreen, 
+                metalness: 0.0, 
+                roughness: 0.9 
+            });
+
+            // 3.2 生成逻辑位置
+            for (let i = 0; i < CONFIG.particleCount; i++) {
+                const p = {
+                    mesh: null,
+                    treePos: new THREE.Vector3(),
+                    scatterPos: new THREE.Vector3(),
+                    velocity: new THREE.Vector3((Math.random()-0.5)*0.05, (Math.random()-0.5)*0.05, (Math.random()-0.5)*0.05),
+                };
+
+                // --- Tree Form Calculation (Spiral Cone) ---
+                const t = i / CONFIG.particleCount; // 0 to 1
+                const angle = t * Math.PI * 20; // 10 circles
+                const radius = CONFIG.treeRadius * (1 - t);
+                const y = t * CONFIG.treeHeight;
+                p.treePos.set(
+                    Math.cos(angle) * radius,
+                    y - CONFIG.treeHeight / 2 + 5, // Center Y slightly
+                    Math.sin(angle) * radius
+                );
+                
+                // Add some jitter to tree pos for volume
+                p.treePos.x += (Math.random() - 0.5);
+                p.treePos.z += (Math.random() - 0.5);
+                p.treePos.y += (Math.random() - 0.5);
+
+                // --- Scatter Form Calculation (Random Cloud) ---
+                const rScatter = 25;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos((Math.random() * 2) - 1);
+                p.scatterPos.set(
+                    rScatter * Math.sin(phi) * Math.cos(theta),
+                    rScatter * Math.sin(phi) * Math.sin(theta),
+                    rScatter * Math.cos(phi)
+                );
+
+                // --- Mesh Creation (All Ornaments now, no photos) ---
+                let mesh;
+                const rand = Math.random();
+                if (rand < 0.33) {
+                    mesh = new THREE.Mesh(sphereGeo, goldMat);
+                } else if (rand < 0.66) {
+                    mesh = new THREE.Mesh(sphereGeo, redMat);
+                } else {
+                    mesh = new THREE.Mesh(cubeGeo, greenMat);
+                }
+                mesh.position.copy(p.treePos);
+                // Random scale
+                const s = 0.5 + Math.random() * 0.8;
+                mesh.scale.set(s, s, s);
+                sceneGroup.add(mesh);
+                p.mesh = mesh;
+                
+                particles.push(p);
+            }
+        }
+
+        // --- 4. 顶部文字 (Canvas Texture) ---
+        function createTopText() {
+            // 加载 Logo
+            const textureLoader = new THREE.TextureLoader();
+            const logoPath = './敞开logo.jpg';
+            textureLoader.load(logoPath, (logoTexture) => {
+                logoTexture.minFilter = THREE.LinearFilter;
+                logoTexture.magFilter = THREE.LinearFilter;
+                const logoMaterial = new THREE.SpriteMaterial({ map: logoTexture, transparent: true });
+                const logoSprite = new THREE.Sprite(logoMaterial);
+                logoSprite.scale.set(6, 6, 1);
+                // Logo 位置：在文字左边，固定不旋转
+                logoSprite.position.set(-12, CONFIG.treeHeight / 2 + 15, 0);
+                scene.add(logoSprite);
+                console.log("Logo loaded successfully");
+            }, undefined, (err) => {
+                console.error("Logo loading failed:", err);
+                // 尝试其他路径
+                textureLoader.load('敞开logo.jpg', (logoTexture) => {
+                    logoTexture.minFilter = THREE.LinearFilter;
+                    logoTexture.magFilter = THREE.LinearFilter;
+                    const logoMaterial = new THREE.SpriteMaterial({ map: logoTexture, transparent: true });
+                    const logoSprite = new THREE.Sprite(logoMaterial);
+                    logoSprite.scale.set(6, 6, 1);
+                    logoSprite.position.set(-12, CONFIG.treeHeight / 2 + 15, 0);
+                    scene.add(logoSprite);
+                    console.log("Logo loaded with alternative path");
+                });
+            });
+
+            const canvas = document.createElement('canvas');
+            canvas.width = 2048;
+            canvas.height = 1024;
+            const ctx = canvas.getContext('2d');
+
+            // 绘制 "敞开酒馆"
+            ctx.fillStyle = 'rgba(0,0,0,0)'; // Transparent
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 去除模糊的阴影效果
+            // ctx.shadowColor = "#D4AF37";
+            // ctx.shadowBlur = 20;
+            
+            ctx.font = 'bold 240px "Noto Serif SC", serif';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#D4AF37';
+            ctx.fillText("敞开酒馆", canvas.width / 2, 400);
+
+            // 绘制 "Merry Christmas"
+            ctx.font = 'italic 200px "Dancing Script", cursive';
+            ctx.fillStyle = '#FFD700'; // Lighter gold
+            ctx.fillText("Merry Christmas", canvas.width / 2, 700);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.minFilter = THREE.LinearFilter;
+            texture.magFilter = THREE.LinearFilter;
+            const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+            const sprite = new THREE.Sprite(material);
+            
+            sprite.scale.set(25, 12.5, 1);
+            // 标题位置调高，固定不旋转
+            sprite.position.set(0, CONFIG.treeHeight / 2 + 15, 0);
+            scene.add(sprite);
+            
+            // Add a Star on top
+            const starGeo = new THREE.OctahedronGeometry(1.5, 0);
+            const starMat = new THREE.MeshStandardMaterial({ 
+                color: 0xffffaa, 
+                emissive: 0xffdd00,
+                emissiveIntensity: 2
+            });
+            const star = new THREE.Mesh(starGeo, starMat);
+            star.position.set(0, CONFIG.treeHeight / 2 + 5, 0);
+            
+            // Star animation loop
+            const animateStar = () => {
+                star.rotation.y += 0.02;
+                requestAnimationFrame(animateStar);
+            }
+            animateStar();
+            
+            sceneGroup.add(star);
+        }
+
+        // --- 5. 弹幕逻辑 ---
+        
+        // 创建单个弹幕对象
+        function spawnDanmaku(text, name = '') {
+            const canvas = document.createElement('canvas');
+            canvas.width = 1024;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.font = 'bold 100px "Noto Serif SC", serif';
+            ctx.fillStyle = '#FFD700';
+            ctx.textAlign = 'center';
+            
+            // 如果有名字，显示格式为 "名字: 祝福内容"
+            const displayText = name ? `${name}: ${text}` : text;
+            ctx.fillText(displayText, canvas.width/2, 150);
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.minFilter = THREE.LinearFilter;
+            texture.magFilter = THREE.LinearFilter;
+            const material = new THREE.SpriteMaterial({ map: texture, transparent: true, opacity: 0.9 });
+            const sprite = new THREE.Sprite(material);
+            
+            // 随机高度 (-5 到 20)
+            const y = (Math.random() * 25) - 5;
+            // 初始 X (屏幕右侧外)
+            const x = 50 + Math.random() * 20;
+            // 深度 Z (树的后面)
+            const z = (Math.random() * 10) - 5; // local z inside danmakuGroup
+
+            // 缩小弹幕宽度，从18改为12
+            sprite.scale.set(12, 4.5, 1);
+            sprite.position.set(x, y, z);
+            
+            danmakuGroup.add(sprite);
+            
+            activeDanmakuObjects.push({
+                mesh: sprite,
+                speed: 0.1 + Math.random() * 0.1
+            });
+        }
+
+        // 弹窗控制
+        window.openModal = function() {
+            document.getElementById('modal-overlay').classList.add('active');
+        }
+        
+        window.closeModal = function() {
+            document.getElementById('modal-overlay').classList.remove('active');
+            document.getElementById('modal-name-input').value = '';
+            document.getElementById('modal-blessing-input').value = '';
+        }
+        
+        window.closeModalOnOverlay = function(event) {
+            if (event.target.id === 'modal-overlay') {
+                closeModal();
+            }
+        }
+        
+        // 提交祝福
+        window.submitBlessing = function() {
+            const nameInput = document.getElementById('modal-name-input');
+            const blessingInput = document.getElementById('modal-blessing-input');
+            const name = nameInput.value.trim();
+            const text = blessingInput.value.trim();
+            
+            if (!text) {
+                alert('请输入祝福内容');
+                return;
+            }
+            
+            // 关闭弹窗
+            closeModal();
+            
+            // 显示大屏高亮
+            showHighlight(name, text);
+            
+            // 5秒后添加到弹幕
+            setTimeout(() => {
+                const fullText = name ? `${name}: ${text}` : text;
+                danmakuList.push(fullText);
+                spawnDanmaku(text, name);
+            }, 5000);
+        }
+        
+        // 显示大屏高亮
+        function showHighlight(name, blessing) {
+            const highlightDiv = document.getElementById('highlight-display');
+            const nameDiv = document.getElementById('highlight-name');
+            const blessingDiv = document.getElementById('highlight-blessing');
+            
+            blessingDiv.textContent = blessing;
+            
+            if (name) {
+                nameDiv.textContent = '—— ' + name;
+                nameDiv.style.display = 'block';
+            } else {
+                nameDiv.style.display = 'none';
+            }
+            
+            highlightDiv.classList.add('active');
+            
+            // 5秒后隐藏
+            setTimeout(() => {
+                highlightDiv.classList.remove('active');
+            }, 5000);
+        }
+        
+        // 键盘回车发送
+        setTimeout(() => {
+            const blessingInput = document.getElementById('modal-blessing-input');
+            const nameInput = document.getElementById('modal-name-input');
+            if (blessingInput) {
+                blessingInput.addEventListener('keypress', function (e) {
+                    if (e.key === 'Enter') submitBlessing();
+                });
+            }
+            if (nameInput) {
+                nameInput.addEventListener('keypress', function (e) {
+                    if (e.key === 'Enter') {
+                        blessingInput.focus();
+                    }
+                });
+            }
+        }, 100);
+
+        // 循环生成和移动
+        function updateDanmaku() {
+            const now = clock.getElapsedTime();
+            
+            // 自动生成 (每2秒生成一个循环内容)
+            if (now - lastSpawnTime > 2) {
+                const text = danmakuList[Math.floor(Math.random() * danmakuList.length)];
+                spawnDanmaku(text);
+                lastSpawnTime = now;
+            }
+            
+            // 移动现有弹幕
+            for (let i = activeDanmakuObjects.length - 1; i >= 0; i--) {
+                const obj = activeDanmakuObjects[i];
+                obj.mesh.position.x -= obj.speed;
+                
+                // 如果移出左边界，销毁
+                if (obj.mesh.position.x < -50) {
+                    danmakuGroup.remove(obj.mesh);
+                    obj.mesh.material.map.dispose();
+                    obj.mesh.material.dispose();
+                    activeDanmakuObjects.splice(i, 1);
+                }
+            }
+        }
+
+        // --- 6. 核心动画循环 ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const dt = clock.getDelta();
+            
+            // 状态插值逻辑
+            particles.forEach((p, idx) => {
+                let targetPos;
+
+                if (currentState === STATE.TREE) {
+                    targetPos = p.treePos;
+                } else if (currentState === STATE.SCATTER) {
+                    targetPos = p.scatterPos;
+                }
+
+                // 1. 移动位置 (Lerp)
+                const lerpSpeed = 2.0 * dt;
+                p.mesh.position.lerp(targetPos, lerpSpeed);
+                
+                // 散开状态下增加一点漂浮感
+                if (currentState === STATE.SCATTER) {
+                     p.mesh.position.x += Math.sin(clock.elapsedTime + idx) * 0.01;
+                     p.mesh.position.y += Math.cos(clock.elapsedTime + idx) * 0.01;
+                }
+            });
+
+            // 场景旋转 (手势控制)
+            if (isHandDetected) {
+                // Map handPosition.x (0 to 1) to rotation angle
+                const targetRotY = (handPosition.x - 0.5) * 4; // -2 to 2 rads
+                const targetRotX = (handPosition.y - 0.5) * 2;
+                
+                sceneGroup.rotation.y += (targetRotY - sceneGroup.rotation.y) * 0.05;
+                sceneGroup.rotation.x += (targetRotX - sceneGroup.rotation.x) * 0.05;
+            } else {
+                // 自动缓慢旋转
+                sceneGroup.rotation.y += 0.005;
+                // 慢慢复位 X 轴
+                sceneGroup.rotation.x += (0 - sceneGroup.rotation.x) * 0.05;
+            }
+            
+            // 更新弹幕
+            updateDanmaku();
+
+            composer.render();
+            TWEEN.update();
+        }
+
+        // --- 7. MediaPipe Hands 集成 ---
+        function onResults(results) {
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                isHandDetected = true;
+                const landmarks = results.multiHandLandmarks[0];
+                
+                // 1. 更新手掌中心 (用于旋转)
+                const cx = 1 - (landmarks[0].x + landmarks[9].x) / 2; // Mirror x
+                const cy = (landmarks[0].y + landmarks[9].y) / 2;
+                
+                handPosition.x = cx;
+                handPosition.y = cy;
+                
+                // 更新 Cursor
+                const cursor = document.getElementById('cursor-follower');
+                cursor.style.display = 'block';
+                cursor.style.left = (cx * 100) + '%';
+                cursor.style.top = (cy * 100) + '%';
+
+                // 2. 状态识别逻辑
+                
+                // A. 握拳检测 (Fist)
+                const wrist = landmarks[0];
+                const tips = [8, 12, 16, 20];
+                let avgDist = 0;
+                tips.forEach(idx => {
+                    const tip = landmarks[idx];
+                    const d = Math.hypot(tip.x - wrist.x, tip.y - wrist.y);
+                    avgDist += d;
+                });
+                avgDist /= 4;
+                
+                const isFist = avgDist < 0.25;
+                const isOpen = avgDist > 0.45;
+
+                // --- 状态切换逻辑 ---
+                if (isFist) {
+                    if (targetState !== STATE.TREE) {
+                        targetState = STATE.TREE;
+                        currentState = STATE.TREE;
+                    }
+                } else if (isOpen) {
+                    if (targetState !== STATE.SCATTER) {
+                        targetState = STATE.SCATTER;
+                        currentState = STATE.SCATTER;
+                    }
+                }
+                
+                cursor.style.borderColor = "red";
+
+            } else {
+                isHandDetected = false;
+                document.getElementById('cursor-follower').style.display = 'none';
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // --- 8. Supabase 实时祝福系统 ---
+        
+        // 初始化 Supabase
+        const { createClient } = supabase;
+        const supabaseClient = createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+        
+        // 生成二维码
+        function generateQRCode() {
+            // 获取当前页面的 URL，替换为手机端页面
+            const currentUrl = window.location.href;
+            const mobileUrl = currentUrl.replace('敞开圣诞树.html', '手机端祝福.html');
+            
+            new QRCode(document.getElementById('qrcode'), {
+                text: mobileUrl,
+                width: 120,
+                height: 120,
+                colorDark: '#0f3b1e',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.H
+            });
+            
+            console.log('QR Code generated for:', mobileUrl);
+        }
+        
+        // 订阅新祝福
+        function subscribeToNewBlessings() {
+            supabaseClient
+                .channel('blessings_channel')
+                .on(
+                    'postgres_changes',
+                    {
+                        event: 'INSERT',
+                        schema: 'public',
+                        table: 'blessings'
+                    },
+                    (payload) => {
+                        console.log('New blessing received:', payload.new);
+                        const { name, blessing } = payload.new;
+                        
+                        // 显示大屏高亮
+                        showHighlight(name, blessing);
+                        
+                        // 5秒后添加到弹幕列表
+                        setTimeout(() => {
+                            const fullText = name ? `${name}: ${blessing}` : blessing;
+                            danmakuList.push(fullText);
+                            // 立即生成一个弹幕
+                            spawnDanmaku(blessing, name);
+                        }, 5000);
+                    }
+                )
+                .subscribe((status) => {
+                    if (status === 'SUBSCRIBED') {
+                        console.log('✅ Subscribed to blessings in real-time');
+                    }
+                });
+        }
+        
+        // --- 9. 启动流程 ---
+        
+        // 初始化 3D
+        initScene();
+        animate();
+        
+        // 生成二维码
+        generateQRCode();
+        
+        // 订阅实时祝福
+        subscribeToNewBlessings();
+
+        // 隐藏加载界面
+        const loading = document.getElementById('loading');
+        setTimeout(() => {
+            loading.style.opacity = 0;
+            setTimeout(() => loading.style.display = 'none', 1000);
+        }, 1000);
+
+        // 摄像头相关变量
+        const videoElement = document.getElementById('video-input');
+        let cameraInitialized = false;
+        let cameraActive = false;
+        let handsInstance = null;
+        let cameraUtilsInstance = null;
+        let isInitializing = false;
+
+        // 停止摄像头
+        function stopCamera() {
+            try {
+                if (videoElement && videoElement.srcObject) {
+                    const tracks = videoElement.srcObject.getTracks();
+                    tracks.forEach(track => track.stop());
+                    videoElement.srcObject = null;
+                }
+                videoElement.style.display = 'none';
+                cameraActive = false;
+                console.log("Camera stopped");
+            } catch (err) {
+                console.error("Error stopping camera:", err);
+            }
+        }
+
+        // 重置摄像头状态
+        function resetCamera() {
+            stopCamera();
+            cameraInitialized = false;
+            isInitializing = false;
+            handsInstance = null;
+            cameraUtilsInstance = null;
+            
+            const btn = document.getElementById('camera-btn');
+            btn.classList.remove('connecting', 'active', 'error');
+            btn.innerHTML = '📷';
+            btn.title = '点击启动摄像头';
+        }
+
+        // 初始化摄像头
+        async function initCamera() {
+            // 防止重复初始化
+            if (isInitializing) {
+                console.log("Already initializing...");
+                return;
+            }
+            
+            if (cameraInitialized && cameraActive) {
+                console.log("Camera already active");
+                return;
+            }
+            
+            isInitializing = true;
+            const btn = document.getElementById('camera-btn');
+            btn.classList.add('connecting');
+            btn.title = '连接中...请稍候';
+            btn.disabled = true;
+            
+            try {
+                // 清理之前的实例
+                if (handsInstance || cameraUtilsInstance) {
+                    stopCamera();
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+                
+                handsInstance = new Hands({locateFile: (file) => {
+                    return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+                }});
+                
+                handsInstance.setOptions({
+                    maxNumHands: 1,
+                    modelComplexity: 1,
+                    minDetectionConfidence: 0.5,
+                    minTrackingConfidence: 0.5
+                });
+                
+                handsInstance.onResults(onResults);
+                
+                cameraUtilsInstance = new Camera(videoElement, {
+                    onFrame: async () => {
+                        if (handsInstance && cameraActive) {
+                            await handsInstance.send({image: videoElement});
+                        }
+                    },
+                    width: 320,
+                    height: 240
+                });
+                
+                await cameraUtilsInstance.start();
+                
+                console.log("Camera started successfully");
+                videoElement.style.display = 'block';
+                cameraInitialized = true;
+                cameraActive = true;
+                isInitializing = false;
+                
+                btn.classList.remove('connecting', 'error');
+                btn.classList.add('active');
+                btn.innerHTML = '✓';
+                btn.title = '摄像头已连接（点击可重置）';
+                btn.disabled = false;
+                
+            } catch (err) {
+                console.error("Camera initialization failed:", err);
+                isInitializing = false;
+                cameraInitialized = false;
+                
+                btn.classList.remove('connecting');
+                btn.classList.add('error');
+                btn.innerHTML = '📷';
+                btn.title = '连接失败，点击重试';
+                btn.disabled = false;
+                
+                // 更友好的错误提示
+                let errorMsg = '无法启动摄像头\n\n';
+                if (err.name === 'NotAllowedError') {
+                    errorMsg += '请在浏览器设置中允许摄像头权限\n';
+                    errorMsg += 'Chrome: 地址栏左侧 🔒 → 网站设置 → 摄像头';
+                } else if (err.name === 'NotFoundError') {
+                    errorMsg += '未检测到摄像头设备\n';
+                    errorMsg += 'Mac mini请确保已连接 iPhone 并开启"连续互通相机"';
+                } else {
+                    errorMsg += '错误: ' + err.message + '\n';
+                    errorMsg += '建议: 刷新页面或重启浏览器';
+                }
+                alert(errorMsg);
+                
+                // 3秒后移除错误状态
+                setTimeout(() => {
+                    if (!cameraActive) {
+                        btn.classList.remove('error');
+                        btn.title = '点击启动摄像头';
+                    }
+                }, 3000);
+            }
+        }
+
+        // 切换摄像头
+        window.toggleCamera = async function() {
+            const btn = document.getElementById('camera-btn');
+            
+            if (cameraActive && cameraInitialized) {
+                // 已连接，点击可以重置
+                if (confirm('要重置摄像头连接吗？\n(如果遇到问题可以尝试重置)')) {
+                    resetCamera();
+                }
+            } else {
+                // 未连接，尝试初始化
+                await initCamera();
+            }
+        }
+
+        // 页面卸载时清理资源
+        window.addEventListener('beforeunload', () => {
+            stopCamera();
+        });
+
+    </script>
+</body>
+</html>

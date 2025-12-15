@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase 连接测试</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a1a;
+            color: #0f0;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #0f0;
+            text-shadow: 0 0 10px #0f0;
+        }
+        .test-section {
+            background: #000;
+            border: 1px solid #0f0;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 3px;
+        }
+        .success {
+            background: rgba(0, 255, 0, 0.2);
+            border-left: 4px solid #0f0;
+        }
+        .error {
+            background: rgba(255, 0, 0, 0.2);
+            border-left: 4px solid #f00;
+            color: #f00;
+        }
+        .pending {
+            background: rgba(255, 255, 0, 0.2);
+            border-left: 4px solid #ff0;
+            color: #ff0;
+        }
+        button {
+            background: #0f0;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 5px;
+            border-radius: 3px;
+        }
+        button:hover {
+            background: #0c0;
+        }
+        pre {
+            background: #111;
+            padding: 10px;
+            overflow-x: auto;
+            border: 1px solid #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Supabase 连接测试</h1>
+    
+    <div class="test-section">
+        <h2>测试 1：配置检查</h2>
+        <div id="config-status" class="status pending">正在检查配置...</div>
+        <pre id="config-details"></pre>
+    </div>
+
+    <div class="test-section">
+        <h2>测试 2：数据库连接</h2>
+        <div id="connection-status" class="status pending">等待测试...</div>
+        <button onclick="testConnection()">开始测试</button>
+    </div>
+
+    <div class="test-section">
+        <h2>测试 3：插入数据</h2>
+        <div id="insert-status" class="status pending">等待测试...</div>
+        <button onclick="testInsert()">测试插入</button>
+    </div>
+
+    <div class="test-section">
+        <h2>测试 4：读取数据</h2>
+        <div id="read-status" class="status pending">等待测试...</div>
+        <button onclick="testRead()">测试读取</button>
+        <pre id="read-data"></pre>
+    </div>
+
+    <div class="test-section">
+        <h2>测试 5：实时订阅</h2>
+        <div id="realtime-status" class="status pending">等待测试...</div>
+        <button onclick="testRealtime()">测试实时</button>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./config.js"></script>
+    <script>
+        let supabaseClient;
+        let realtimeChannel;
+
+        // 测试 1：配置检查
+        window.addEventListener('load', () => {
+            const configStatus = document.getElementById('config-status');
+            const configDetails = document.getElementById('config-details');
+
+            try {
+                if (!SUPABASE_CONFIG || !SUPABASE_CONFIG.url || !SUPABASE_CONFIG.anonKey) {
+                    throw new Error('配置文件缺失或不完整');
+                }
+
+                configStatus.className = 'status success';
+                configStatus.textContent = '✓ 配置文件加载成功';
+                
+                configDetails.textContent = `URL: ${SUPABASE_CONFIG.url}\nKey: ${SUPABASE_CONFIG.anonKey.substring(0, 50)}...`;
+
+                // 初始化客户端
+                const { createClient } = supabase;
+                supabaseClient = createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+
+            } catch (error) {
+                configStatus.className = 'status error';
+                configStatus.textContent = '✗ 配置错误: ' + error.message;
+            }
+        });
+
+        // 测试 2：数据库连接
+        async function testConnection() {
+            const status = document.getElementById('connection-status');
+            status.className = 'status pending';
+            status.textContent = '正在连接数据库...';
+
+            try {
+                const { data, error } = await supabaseClient
+                    .from('blessings')
+                    .select('count')
+                    .limit(1);
+
+                if (error) throw error;
+
+                status.className = 'status success';
+                status.textContent = '✓ 数据库连接成功！表 "blessings" 存在';
+            } catch (error) {
+                status.className = 'status error';
+                status.textContent = '✗ 连接失败: ' + error.message;
+                
+                if (error.message.includes('relation "public.blessings" does not exist')) {
+                    status.textContent += '\n\n请在 Supabase SQL Editor 中创建 blessings 表！';
+                }
+            }
+        }
+
+        // 测试 3：插入数据
+        async function testInsert() {
+            const status = document.getElementById('insert-status');
+            status.className = 'status pending';
+            status.textContent = '正在插入测试数据...';
+
+            try {
+                const testData = {
+                    name: '测试用户',
+                    blessing: '这是一条测试祝福 ' + new Date().toLocaleTimeString(),
+                    created_at: new Date().toISOString()
+                };
+
+                const { data, error } = await supabaseClient
+                    .from('blessings')
+                    .insert([testData])
+                    .select();
+
+                if (error) throw error;
+
+                status.className = 'status success';
+                status.textContent = '✓ 数据插入成功！ID: ' + data[0].id;
+            } catch (error) {
+                status.className = 'status error';
+                status.textContent = '✗ 插入失败: ' + error.message;
+                
+                if (error.message.includes('permission denied')) {
+                    status.textContent += '\n\n请检查 RLS 策略是否正确设置！';
+                }
+            }
+        }
+
+        // 测试 4：读取数据
+        async function testRead() {
+            const status = document.getElementById('read-status');
+            const dataDisplay = document.getElementById('read-data');
+            status.className = 'status pending';
+            status.textContent = '正在读取数据...';
+
+            try {
+                const { data, error } = await supabaseClient
+                    .from('blessings')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(5);
+
+                if (error) throw error;
+
+                status.className = 'status success';
+                status.textContent = `✓ 读取成功！共 ${data.length} 条记录`;
+                
+                dataDisplay.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                status.className = 'status error';
+                status.textContent = '✗ 读取失败: ' + error.message;
+                dataDisplay.textContent = '';
+            }
+        }
+
+        // 测试 5：实时订阅
+        function testRealtime() {
+            const status = document.getElementById('realtime-status');
+            status.className = 'status pending';
+            status.textContent = '正在订阅实时更新...';
+
+            try {
+                // 清理之前的订阅
+                if (realtimeChannel) {
+                    supabaseClient.removeChannel(realtimeChannel);
+                }
+
+                realtimeChannel = supabaseClient
+                    .channel('test_channel')
+                    .on(
+                        'postgres_changes',
+                        {
+                            event: 'INSERT',
+                            schema: 'public',
+                            table: 'blessings'
+                        },
+                        (payload) => {
+                            status.className = 'status success';
+                            status.textContent = '✓ 实时订阅成功！收到新数据: ' + payload.new.blessing;
+                        }
+                    )
+                    .subscribe((subscribeStatus) => {
+                        if (subscribeStatus === 'SUBSCRIBED') {
+                            status.className = 'status success';
+                            status.textContent = '✓ 实时订阅成功！等待新数据...\n\n提示：在另一个标签页插入数据来测试';
+                        } else if (subscribeStatus === 'CHANNEL_ERROR') {
+                            status.className = 'status error';
+                            status.textContent = '✗ 订阅失败！请检查 Supabase Realtime 设置';
+                        }
+                    });
+            } catch (error) {
+                status.className = 'status error';
+                status.textContent = '✗ 订阅错误: ' + error.message;
+            }
+        }
+
+        // 显示提示
+        console.log('%c🎄 Supabase 测试工具', 'color: #0f0; font-size: 20px; font-weight: bold');
+        console.log('依次点击测试按钮，确保所有测试通过');
+    </script>
+</body>
+</html>
+

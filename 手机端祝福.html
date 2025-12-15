@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>敞开酒馆 - 圣诞祝福</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Serif SC', serif;
+            background: linear-gradient(135deg, #0f3b1e 0%, #001a0a 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: #fff;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: rgba(0, 30, 15, 0.9);
+            border-radius: 20px;
+            border: 2px solid #D4AF37;
+            padding: 30px 25px;
+            box-shadow: 0 0 40px rgba(212, 175, 55, 0.3);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            color: #D4AF37;
+            font-size: 1.8rem;
+            margin-bottom: 5px;
+            text-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
+        }
+
+        .subtitle {
+            color: #FFD700;
+            font-size: 1rem;
+            opacity: 0.8;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            color: #D4AF37;
+            font-size: 1rem;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        input, textarea {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid rgba(212, 175, 55, 0.5);
+            border-radius: 10px;
+            padding: 15px;
+            color: #fff;
+            font-family: 'Noto Serif SC', serif;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #D4AF37;
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+        }
+
+        input::placeholder, textarea::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .char-count {
+            text-align: right;
+            font-size: 0.85rem;
+            color: rgba(212, 175, 55, 0.6);
+            margin-top: 5px;
+        }
+
+        .submit-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #D4AF37, #AA8822);
+            border: none;
+            border-radius: 50px;
+            padding: 18px;
+            color: #0f3b1e;
+            font-size: 1.3rem;
+            font-weight: bold;
+            font-family: 'Noto Serif SC', serif;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 5px 20px rgba(212, 175, 55, 0.4);
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(212, 175, 55, 0.6);
+        }
+
+        .submit-btn:active {
+            transform: translateY(0);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .tips {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(212, 175, 55, 0.1);
+            border-radius: 10px;
+            border-left: 3px solid #D4AF37;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.6;
+        }
+
+        .success-message {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .success-message.show {
+            display: flex;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .success-content {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .success-icon {
+            font-size: 5rem;
+            margin-bottom: 20px;
+            animation: scaleIn 0.5s;
+        }
+
+        @keyframes scaleIn {
+            from { transform: scale(0); }
+            to { transform: scale(1); }
+        }
+
+        .success-text {
+            font-size: 2rem;
+            color: #D4AF37;
+            margin-bottom: 15px;
+            text-shadow: 0 0 30px rgba(212, 175, 55, 0.8);
+        }
+
+        .success-subtext {
+            font-size: 1.2rem;
+            color: #FFD700;
+            margin-bottom: 30px;
+        }
+
+        .close-btn {
+            background: transparent;
+            border: 2px solid #D4AF37;
+            color: #D4AF37;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 1.1rem;
+            font-family: 'Noto Serif SC', serif;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .close-btn:hover {
+            background: #D4AF37;
+            color: #0f3b1e;
+        }
+
+        .error-message {
+            display: none;
+            margin-top: 15px;
+            padding: 12px;
+            background: rgba(255, 68, 68, 0.2);
+            border: 1px solid #ff4444;
+            border-radius: 8px;
+            color: #ffaaaa;
+            font-size: 0.9rem;
+        }
+
+        .error-message.show {
+            display: block;
+            animation: shake 0.5s;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🎄</div>
+            <h1>敞开酒馆</h1>
+            <p class="subtitle">送上你的圣诞祝福</p>
+        </div>
+
+        <form id="blessingForm">
+            <div class="form-group">
+                <label for="name">你的名字（选填）</label>
+                <input 
+                    type="text" 
+                    id="name" 
+                    name="name" 
+                    placeholder="留下你的名字或昵称"
+                    maxlength="10"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="blessing">你的祝福 *</label>
+                <textarea 
+                    id="blessing" 
+                    name="blessing" 
+                    placeholder="写下你的圣诞祝福吧..."
+                    maxlength="30"
+                    required
+                ></textarea>
+                <div class="char-count">
+                    <span id="charCount">0</span> / 30
+                </div>
+            </div>
+
+            <div class="error-message" id="errorMessage"></div>
+
+            <button type="submit" class="submit-btn" id="submitBtn">
+                ✨ 送出祝福
+            </button>
+        </form>
+
+        <div class="tips">
+            💡 提示：你的祝福将在大屏幕上实时高亮显示5秒，然后加入弹幕墙循环播放
+        </div>
+    </div>
+
+    <!-- 成功提示 -->
+    <div class="success-message" id="successMessage">
+        <div class="success-content">
+            <div class="success-icon">🎉</div>
+            <div class="success-text">祝福已送达！</div>
+            <div class="success-subtext">快去大屏幕上看看吧</div>
+            <button class="close-btn" onclick="closeSuccess()">继续送祝福</button>
+        </div>
+    </div>
+
+    <!-- 引入 Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./config.js"></script>
+
+    <script>
+        // 初始化 Supabase
+        const { createClient } = supabase;
+        const supabaseClient = createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+
+        // 字符计数
+        const blessingInput = document.getElementById('blessing');
+        const charCount = document.getElementById('charCount');
+
+        blessingInput.addEventListener('input', function() {
+            charCount.textContent = this.value.length;
+        });
+
+        // 表单提交
+        const form = document.getElementById('blessingForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const errorMessage = document.getElementById('errorMessage');
+        const successMessage = document.getElementById('successMessage');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const name = document.getElementById('name').value.trim();
+            const blessing = document.getElementById('blessing').value.trim();
+
+            // 验证
+            if (!blessing) {
+                showError('请输入祝福内容');
+                return;
+            }
+
+            if (blessing.length > 30) {
+                showError('祝福内容不能超过30个字');
+                return;
+            }
+
+            // 禁用按钮
+            submitBtn.disabled = true;
+            submitBtn.textContent = '发送中...';
+            errorMessage.classList.remove('show');
+
+            try {
+                // 插入数据
+                const { data, error } = await supabaseClient
+                    .from('blessings')
+                    .insert([
+                        {
+                            name: name || null,
+                            blessing: blessing,
+                            created_at: new Date().toISOString()
+                        }
+                    ]);
+
+                if (error) throw error;
+
+                // 成功
+                showSuccess();
+                form.reset();
+                charCount.textContent = '0';
+
+            } catch (error) {
+                console.error('Error:', error);
+                showError('发送失败，请稍后重试');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '✨ 送出祝福';
+            }
+        });
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.add('show');
+            setTimeout(() => {
+                errorMessage.classList.remove('show');
+            }, 3000);
+        }
+
+        function showSuccess() {
+            successMessage.classList.add('show');
+        }
+
+        function closeSuccess() {
+            successMessage.classList.remove('show');
+        }
+
+        // 防止误触关闭
+        successMessage.addEventListener('click', (e) => {
+            if (e.target === successMessage) {
+                closeSuccess();
+            }
+        });
+    </script>
+</body>
+</html>
+
