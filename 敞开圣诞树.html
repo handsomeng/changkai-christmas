@@ -425,7 +425,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
     
     <!-- QRCode -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/qrcodejs@1.0.0/qrcode.min.js"></script>
     
     <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1096,17 +1096,32 @@
         // 生成二维码
         function generateQRCode() {
             try {
+                const qrcodeElement = document.getElementById('qrcode');
+                
                 // 检查 QRCode 库是否加载
                 if (typeof QRCode === 'undefined') {
-                    console.warn('QRCode library not loaded');
-                    document.getElementById('qrcode').innerHTML = '<p style="color:#D4AF37;font-size:0.8rem;padding:10px;">二维码加载中...</p>';
+                    console.warn('QRCode library not loaded, retrying...');
+                    qrcodeElement.innerHTML = '<p style="color:#D4AF37;font-size:0.8rem;padding:10px;">二维码加载中...</p>';
+                    
+                    // 3秒后重试
+                    setTimeout(() => {
+                        if (typeof QRCode !== 'undefined') {
+                            generateQRCode();
+                        } else {
+                            console.error('QRCode library failed to load');
+                            qrcodeElement.innerHTML = '<p style="color:#D4AF37;font-size:0.8rem;padding:10px;line-height:1.6;">📱 扫码送祝福<br><br>请访问:<br>' + window.location.origin + '/手机端祝福.html</p>';
+                        }
+                    }, 3000);
                     return;
                 }
+                
+                // 清空之前的内容
+                qrcodeElement.innerHTML = '';
                 
                 // 直接使用域名 + 手机端页面路径
                 const mobileUrl = window.location.origin + '/手机端祝福.html';
                 
-                new QRCode(document.getElementById('qrcode'), {
+                new QRCode(qrcodeElement, {
                     text: mobileUrl,
                     width: 120,
                     height: 120,
@@ -1115,10 +1130,10 @@
                     correctLevel: QRCode.CorrectLevel.H
                 });
                 
-                console.log('QR Code generated for:', mobileUrl);
+                console.log('✅ QR Code generated for:', mobileUrl);
             } catch (error) {
                 console.error('QR Code generation failed:', error);
-                document.getElementById('qrcode').innerHTML = '<p style="color:#D4AF37;font-size:0.8rem;padding:10px;">请直接访问:<br>' + window.location.origin + '/手机端祝福.html</p>';
+                document.getElementById('qrcode').innerHTML = '<p style="color:#D4AF37;font-size:0.8rem;padding:10px;line-height:1.6;">📱 扫码送祝福<br><br>请访问:<br>' + window.location.origin + '/手机端祝福.html</p>';
             }
         }
         
@@ -1173,8 +1188,10 @@
         initScene();
         animate();
         
-        // 生成二维码
-        generateQRCode();
+        // 生成二维码（延迟确保库已加载）
+        setTimeout(() => {
+            generateQRCode();
+        }, 100);
         
         // 订阅实时祝福
         subscribeToNewBlessings();
